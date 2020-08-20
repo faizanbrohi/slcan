@@ -1,0 +1,16 @@
+
+#!/bin/bash
+
+set -x
+
+sudo ip link set slcan0 down
+
+sudo rmmod can_raw
+sudo rmmod can_dev
+sudo rmmod can
+sudo rmmod slcan
+
+set +x
+
+
+
