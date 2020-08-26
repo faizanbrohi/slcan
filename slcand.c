@@ -394,33 +394,33 @@ int main(int argc, char *argv[])
 	printf("Error set slcan like discipline on given tty"); }
 	
 	/* retrieve the name of the created CAN netdevice */
-	 if (ioctl(fd, SIOCGIFNAME, ifr.ifr_name) < 0) {
-	 	printf("Error"); }
+	//  if (ioctl(fd, SIOCGIFNAME, ifr.ifr_name) < 0) {
+	//  	printf("Error"); }
 
-	 printf("attached TTY %s to netdevice %s\n", ttypath, ifr.ifr_name);
+	//  printf("attached TTY %s to netdevice %s\n", ttypath, ifr.ifr_name);
 	
-	/* try to rename the created netdevice */
-	 if (name) {
-		printf("Trying to rename!\n");
-	 	int s = socket(PF_INET, SOCK_DGRAM, 0);
+	// /* try to rename the created netdevice */
+	//  if (name) {
+	// 	printf("Trying to rename!\n");
+	//  	int s = socket(PF_INET, SOCK_DGRAM, 0);
 
-		if (s < 0)
-	 		printf("socket for interface rename");
-		else {
-	 		/* current slcan%d name is still in ifr.ifr_name */
-			memset (ifr.ifr_newname, 0, sizeof(ifr.ifr_newname));
-	 		strncpy (ifr.ifr_newname, name, sizeof(ifr.ifr_newname) - 1);
+	// 	if (s < 0)
+	//  		printf("socket for interface rename");
+	// 	else {
+	//  		/* current slcan%d name is still in ifr.ifr_name */
+	// 		memset (ifr.ifr_newname, 0, sizeof(ifr.ifr_newname));
+	//  		strncpy (ifr.ifr_newname, name, sizeof(ifr.ifr_newname) - 1);
 
-	 		if (ioctl(s, SIOCSIFNAME, &ifr) < 0) {
-	 			printf("netdevice %s rename to %s failed\n", buf, name);
-	 			printf("ioctl SIOCSIFNAME rename");
-		} 
-		else
-			printf("netdevice %s renamed to %s\n", buf, name);
+	//  		if (ioctl(s, SIOCSIFNAME, &ifr) < 0) {
+	//  			printf("netdevice %s rename to %s failed\n", buf, name);
+	//  			printf("ioctl SIOCSIFNAME rename");
+	// 	} 
+	// 	else
+	// 		printf("netdevice %s renamed to %s\n", buf, name);
 
-     		//close(s);
- 	        }	
-	           }
+    //  		close(s);
+ 	//         }	
+	//           }
 
 	// /* Daemonize */
 	// if (run_as_daemon) {
@@ -435,18 +435,18 @@ int main(int argc, char *argv[])
 	// 	signal(SIGTERM, child_handler);
 	// }
 
-	slcand_running = 1;
+	// slcand_running = 1;
 
 	// /* The Big Loop */
 	// while (slcand_running)
 	// 	sleep(1); /* wait 1 second */
 
 	// /* Reset line discipline */
-	printf("stopping on TTY device %s", ttypath);
-	ldisc = N_TTY;
-	if (ioctl(fd, TIOCSETD, &ldisc) < 0) {
-	 	printf("Error Reset line discipline");
-	 }
+	// printf("stopping on TTY device %s", ttypath);
+	// ldisc = N_TTY;
+	// if (ioctl(fd, TIOCSETD, &ldisc) < 0) {
+	//  	printf("Error Reset line discipline");
+	//  }
 
 	// if (send_close) {
 	// 	sprintf(buf, "C\r");
