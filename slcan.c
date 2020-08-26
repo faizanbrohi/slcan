@@ -1,4 +1,4 @@
- /*
+/*
  * slcan.c - serial line CAN interface driver (using tty line discipline)
  *
  * This file is derived from linux/drivers/net/slip/slip.c
@@ -55,7 +55,6 @@
 #include <linux/workqueue.h>
 #include <linux/can.h>
 #include <linux/can/skb.h>
-#include <can-ml.h>
 
 MODULE_ALIAS_LDISC(N_SLCAN);
 MODULE_DESCRIPTION("serial line CAN interface");
@@ -77,19 +76,15 @@ MODULE_PARM_DESC(maxdev, "Maximum number of slcan interfaces");
 #define SLC_SFF_ID_LEN 3
 #define SLC_EFF_ID_LEN 8
 
-//----------------------------------------------------------------------------------------------------
 // Constant / Definition / Marco.
 //----------------------------------------------------------------------------------------------------
-
 #define JRC_COM_PORT_VERSION		20200306
 #define BUFFER_SIZE_MAX				128
-
 // CRC-8, X^8 + X^2 + X + 1.
 #define CRC8_GP						0x107
 #define CRC8_DI						0x07
 #define CRC8_TABLE_SIZE				256
 #define CRC8_POLY					0x7
-
 // Command list:
 //Read Commands
 #define CMD_Read_Mask_n_Filter_R				0x47		// R, Data length = 33.
@@ -101,8 +96,6 @@ MODULE_PARM_DESC(maxdev, "Maximum number of slcan interfaces");
 #define CMD_Send_W								0x54		// W, Data length = 0.
 #define CMD_Set_Data_W							0x58		// W, Data length = 14.
 #define CMD_Reset_Into_Bootloader_W				0x5A		// W, Data length = 0.
-
-
 // Response Commands list:
 #define RES_Set_Data							0x33		//    Data length = 0.
 #define RES_SET_Mask_n_Filter					0x34		//    Data length = 0.
@@ -113,9 +106,6 @@ MODULE_PARM_DESC(maxdev, "Maximum number of slcan interfaces");
 #define RES_Set_Baud							0x39		//    Data length = 0.
 #define RES_FW_VERSION  						0x40		//    Data length = 2.
 #define RES_Send_Finish	     					0x46		//    Data length = 0.
-
-
-
 //Baud Rates
 #define	Baud_Rate_10KB							0b00000		//    00000： 10KB
 #define	Baud_Rate_20KB							0b00001		//    00001： 20KB
@@ -138,27 +128,17 @@ MODULE_PARM_DESC(maxdev, "Maximum number of slcan interfaces");
 #define	Baud_Rate_625KB							0b10010		//    10010： 625KB
 #define	Baud_Rate_800KB							0b10011		//    10011： 800KB
 #define	Baud_Rate_1MB							0b100100	//    100100： 1MB
-
-
-
-
-
-
 #define RES_UNKNOWN_COMMAND_OR_ERROR_PACKET		0x50		//  , Data length = 0.
-
-
 //----------------------------------------------------------------------------------------------------
 // Enum / Struct / Data type.
 //----------------------------------------------------------------------------------------------------
-
-
 //----------------------------------------------------------------------------------------------------
 // Global variable.
 //----------------------------------------------------------------------------------------------------
-
 int					giFD = 0;							// File Descriptor.
 unsigned char		gucCRC8Table[CRC8_TABLE_SIZE];		// 8-bit table.
 int					giMadeTable = 0;
+
 
 
 
@@ -180,7 +160,7 @@ struct slcan {
 
 	unsigned long		flags;		/* Flag values/ mode etc     */
 #define SLF_INUSE		0		/* Channel in use            */
-#define SLF_ERROR		1              /* Parity, etc. error        */
+#define SLF_ERROR		1               /* Parity, etc. error        */
 };
 
 static struct net_device **slcan_devs;
@@ -310,8 +290,7 @@ static void slc_bump(struct slcan *sl)
 /* parse tty input stream */
 static void slcan_unesc(struct slcan *sl, unsigned char s)
 {
-
-printk("Inside unesc layer %c",s);
+	printk("Inside unesc layer %x",s);
 	if ((s == '\r') || (s == '\a')) { /* CR or BEL ends the pdu */
 		if (!test_and_clear_bit(SLF_ERROR, &sl->flags) &&
 		    (sl->rcount > 4))  {
@@ -336,13 +315,8 @@ printk("Inside unesc layer %c",s);
   ************************************************************************/
 
 /* Encapsulate one can_frame and stuff into a TTY queue. */
-
-
 static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 {
-
-
-	
 	int actual, i;
 	unsigned char *pos;
 	unsigned char otpBuffer[14];
@@ -385,15 +359,15 @@ static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 	
 	///////////----Read Packet for app layer----//////////////
 	/////////////////////----Start----////////////////////////
-	
-	
+
 	canid_t id = cf->can_id;
+
 	pos = sl->xbuff;
 
 	if (cf->can_id & CAN_RTR_FLAG)
-		*pos = 'A'; /* becomes 'r' in standard frame format (SFF) */
+		*pos = 'R'; /* becomes 'r' in standard frame format (SFF) */
 	else
-		*pos = 'B'; /* becomes 't' in standard frame format (SSF) */
+		*pos = 'T'; /* becomes 't' in standard frame format (SSF) */
 
 	/* determine number of chars for the CAN-identifier */
 	if (cf->can_id & CAN_EFF_FLAG) {
@@ -421,10 +395,10 @@ static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 		for (i = 0; i < cf->can_dlc; i++)
 			pos = hex_byte_pack_upper(pos, cf->data[i]);
 	}
-	
 
 	*pos++ = '\r';
-	printk("%d",(pos - sl->xbuff)); 
+
+         printk("%d",(pos - sl->xbuff)); 
 	otp_can_id[0] = *(sl->xbuff + 1);
 	otp_can_id[1] = *(sl->xbuff + 2);
 	otp_can_id[2] = *(sl->xbuff + 3);
@@ -433,7 +407,6 @@ static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 	{
 	otpBuffer[i] = *(sl->xbuff + (i+1));
 	}
-
 	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags); // 0
 	// can id 
 //	sl->tty->ops->write(sl->tty, otp_can_id, 3); // 1
@@ -442,7 +415,6 @@ static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 //	sl->xleft = (pos - sl->xbuff) - actual;
 //	sl->xhead = sl->xbuff + actual;
 //	sl->dev->stats.tx_bytes += cf->can_dlc;
-
 	/////////////////////----End----//////////////////////////
 	
 	///////////----Send Read FW Packet-----///////////////////
@@ -459,8 +431,6 @@ static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 	// Command.
 	ot_ucpPacket[iLength++] = CMD_FW_VERSION_R;
 	//iLength++;
-
-
 	// Checksum, CRC-8.
 	ucCRC = 0;
 	ucData = 0;
@@ -483,342 +453,21 @@ static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 	
 	// Transmit packet
 	sl->tty->ops->write(sl->tty, ot_ucpPacket, iLength);
-	
-	/////////////////////----End----//////////////////////////
-	
-	////////////////----Set Baud Rate-----///////////////////
-	/////////////////////----Start----////////////////////////
-	
-	// Fill packet.
-	// Header.
-	
-	iLength = 0; // initialize length
-	ucCmdData[0]= Baud_Rate_250KB; // set Can Baud rate
-	
-	ot_ucpPacket[iLength++] = 0x24;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x43;
-	//iLength++;
-	
-	// Command.
-	ot_ucpPacket[iLength++] = CMD_Set_Baud_W;
-	//iLength++;
-		
-	for( i = 0 ;i <2;i++)
-		{
-			ot_ucpPacket[iLength++] = ucCmdData[i];
-		}
 
-	// Checksum, CRC-8.
-	
-	ucCRC = 0;
-	ucData = 0;
-		
-	for(i=0; i<iLength; i++)
-	{
-		ucData = ot_ucpPacket[i] ^ ucCRC;
-		ucCRC = gucCRC8Table[ucData];
-	}
-	
-	
-	//ucCRC = CalculateCRC8(ot_ucpPacket, iLength);
-	
-	ot_ucpPacket[iLength++] = ucCRC;
-	//iLength++;
-	// Stop.
-	ot_ucpPacket[iLength++] = 0x0A;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x0D;
-	//iLength++;
-	
-	// Transmit packet
-	sl->tty->ops->write(sl->tty, ot_ucpPacket, iLength);
-	
-	/////////////////////----End----//////////////////////////
-	
-	////////////////----Set Mask n filter-----////////////////
-	/////////////////////----Start----////////////////////////
-	
-	// Fill packet.
-	// Header.
-	
-	iLength = 0; // initialize length
-	for (i = 0; i < 33; ++i) // Using for loop we are initializing
-		{
-    		ucCmdData[i] = 0;
-		}
-	
-	
-	ot_ucpPacket[iLength++] = 0x24;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x43;
-	//iLength++;
-	
-	// Command.
-	ot_ucpPacket[iLength++] = CMD_SET_Mask_n_Filter_W;
-	//iLength++;
-		
-	for( i = 0 ;i <33;i++)
-		{
-			ot_ucpPacket[iLength++] = ucCmdData[i];
-		}
 
-	// Checksum, CRC-8.
-	
-	ucCRC = 0;
-	ucData = 0;
-		
-	for(i=0; i<iLength; i++)
-	{
-		ucData = ot_ucpPacket[i] ^ ucCRC;
-		ucCRC = gucCRC8Table[ucData];
-	}
-	
-	
-	//ucCRC = CalculateCRC8(ot_ucpPacket, iLength);
-	
-	ot_ucpPacket[iLength++] = ucCRC;
-	//iLength++;
-	// Stop.
-	ot_ucpPacket[iLength++] = 0x0A;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x0D;
-	//iLength++;
-	
-	// Transmit packet
-	sl->tty->ops->write(sl->tty, ot_ucpPacket, iLength);
-	
-	/////////////////////----End----//////////////////////////
-	
-	////////////////----Read Mask n filter----////////////////
-	/////////////////////----Start----////////////////////////
-	
-	// Fill packet.
-	// Header.
-	
-	iLength = 0; // initialize length
-	for (i = 0; i < 33; ++i) // Using for loop we are initializing
-		{
-    		ucCmdData[i] = 0;
-		}
-	
-	
-	ot_ucpPacket[iLength++] = 0x24;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x43;
-	//iLength++;
-	
-	// Command.
-	ot_ucpPacket[iLength++] = CMD_Read_Mask_n_Filter_R;
-	//iLength++;
-		
-	for( i = 0 ;i <33;i++)
-		{
-			ot_ucpPacket[iLength++] = ucCmdData[i];
-		}
-
-	// Checksum, CRC-8.
-	
-	ucCRC = 0;
-	ucData = 0;
-		
-	for(i=0; i<iLength; i++)
-	{
-		ucData = ot_ucpPacket[i] ^ ucCRC;
-		ucCRC = gucCRC8Table[ucData];
-	}
-	
-	
-	//ucCRC = CalculateCRC8(ot_ucpPacket, iLength);
-	
-	ot_ucpPacket[iLength++] = ucCRC;
-	//iLength++;
-	// Stop.
-	ot_ucpPacket[iLength++] = 0x0A;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x0D;
-	//iLength++;
-	
-	// Transmit packet
-	sl->tty->ops->write(sl->tty, ot_ucpPacket, iLength);
-	
-	/////////////////////----End----//////////////////////////
-	
-	//////////////////----Set Can data----////////////////////
-	/////////////////////----Start----////////////////////////
-	
-	// Fill packet.
-	// Header.
-	
-	iLength = 0; // initialize length
-	for (i = 0; i < 33; ++i) // Using for loop we are initializing
-		{
-    		ucCmdData[i] = 0;
-		}
-	
-	// D0: Reserve
-	// D1: IDE RTR B0 B1 DLC(4)
-	// D2~D5: ID1~ID4
-	// ID=0xID1 ID2 ID3 ID4
-	// D6~D13: Data1~ Data8
-	
-	ucCmdData[1]= 0b100001000;
-	//CAN ID
-	ucCmdData[2]=0x0;
-	ucCmdData[3]=otp_can_id[0];
-	ucCmdData[4]=otp_can_id[1];
-	ucCmdData[5]=otp_can_id[2];
-	//CAN Data
-	ucCmdData[6]=otpBuffer[4];
-	ucCmdData[7]=otpBuffer[5];
-	ucCmdData[8]=otpBuffer[6];
-	ucCmdData[9]=otpBuffer[7];
-	ucCmdData[10]=otpBuffer[8];
-	ucCmdData[11]=otpBuffer[9];
-	ucCmdData[12]=otpBuffer[10];
-	ucCmdData[13]=otpBuffer[11];
-	
-	ot_ucpPacket[iLength++] = 0x24;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x43;
-	//iLength++;
-	
-	// Command.
-	ot_ucpPacket[iLength++] = CMD_Set_Data_W;
-	//iLength++;
-		
-	for( i = 0 ;i <14;i++)
-		{
-			ot_ucpPacket[iLength++] = ucCmdData[i];
-		}
-
-	// Checksum, CRC-8.
-	
-	ucCRC = 0;
-	ucData = 0;
-		
-	for(i=0; i<iLength; i++)
-	{
-		ucData = ot_ucpPacket[i] ^ ucCRC;
-		ucCRC = gucCRC8Table[ucData];
-	}
-	
-	
-	//ucCRC = CalculateCRC8(ot_ucpPacket, iLength);
-	
-	ot_ucpPacket[iLength++] = ucCRC;
-	//iLength++;
-	// Stop.
-	ot_ucpPacket[iLength++] = 0x0A;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x0D;
-	//iLength++;
-	
-	// Transmit packet
-	sl->tty->ops->write(sl->tty, ot_ucpPacket, iLength);
-	
-	/////////////////////----End----//////////////////////////
-	
-	//////////////////----Send Can data----///////////////////
-	/////////////////////----Start----////////////////////////
-	
-	// Fill packet.
-	// Header.
-	
-	iLength = 0; // initialize length
-	for (i = 0; i < 33; ++i) // Using for loop we are initializing
-		{
-    		ucCmdData[i] = 0;
-		}
-	
-		
-	ot_ucpPacket[iLength++] = 0x24;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x43;
-	//iLength++;
-	
-	// Command.
-	ot_ucpPacket[iLength++] = CMD_Send_W;
-	//iLength++;
-		
-
-	// Checksum, CRC-8.
-	
-	ucCRC = 0;
-	ucData = 0;
-		
-	for(i=0; i<iLength; i++)
-	{
-		ucData = ot_ucpPacket[i] ^ ucCRC;
-		ucCRC = gucCRC8Table[ucData];
-	}
-	
-	
-	//ucCRC = CalculateCRC8(ot_ucpPacket, iLength);
-	
-	ot_ucpPacket[iLength++] = ucCRC;
-	//iLength++;
-	// Stop.
-	ot_ucpPacket[iLength++] = 0x0A;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x0D;
-	//iLength++;
-	
-	// Transmit packet
-	sl->tty->ops->write(sl->tty, ot_ucpPacket, iLength);
-	
-	/////////////////////----End----//////////////////////////
-	
-	//////////////////----Read Settings----///////////////////
-	/////////////////////----Start----////////////////////////
-	
-	// Fill packet.
-	// Header.
-	
-	iLength = 0; // initialize length
-	for (i = 0; i < 33; ++i) // Using for loop we are initializing
-		{
-    		ucCmdData[i] = 0;
-		}
-	
-		
-	ot_ucpPacket[iLength++] = 0x24;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x43;
-	//iLength++;
-	
-	// Command.
-	ot_ucpPacket[iLength++] = CMD_Read_Setting_R;
-	//iLength++;
-		
-
-	// Checksum, CRC-8.
-	
-	ucCRC = 0;
-	ucData = 0;
-		
-	for(i=0; i<iLength; i++)
-	{
-		ucData = ot_ucpPacket[i] ^ ucCRC;
-		ucCRC = gucCRC8Table[ucData];
-	}
-	
-	
-	//ucCRC = CalculateCRC8(ot_ucpPacket, iLength);
-	
-	ot_ucpPacket[iLength++] = ucCRC;
-	//iLength++;
-	// Stop.
-	ot_ucpPacket[iLength++] = 0x0A;
-	//iLength++;
-	ot_ucpPacket[iLength++] = 0x0D;
-	//iLength++;
-	
-	// Transmit packet
-	sl->tty->ops->write(sl->tty, ot_ucpPacket, iLength);
-	
-	/////////////////////----End----//////////////////////////
-
+	/* Order of next two lines is *very* important.
+	 * When we are sending a little amount of data,
+	 * the transfer may be completed inside the ops->write()
+	 * routine, because it's running with interrupts enabled.
+	 * In this case we *never* got WRITE_WAKEUP event,
+	 * if we did not request it before write operation.
+	 *       14 Oct 1994  Dmitry Gorodchanin.
+	 */
+	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
+	actual = sl->tty->ops->write(sl->tty, sl->xbuff, pos - sl->xbuff);
+	sl->xleft = (pos - sl->xbuff) - actual;
+	sl->xhead = sl->xbuff + actual;
+	sl->dev->stats.tx_bytes += cf->can_dlc;
 }
 
 /* Write out any remaining transmit buffer. Scheduled when tty is writable */
@@ -827,7 +476,6 @@ static void slcan_transmit(struct work_struct *work)
 	struct slcan *sl = container_of(work, struct slcan, tx_work);
 	int actual;
 
-	printk("Writng any remingin work");
 	spin_lock_bh(&sl->lock);
 	/* First make sure we're connected. */
 	if (!sl->tty || sl->magic != SLCAN_MAGIC || !netif_running(sl->dev)) {
@@ -889,7 +537,6 @@ static netdev_tx_t slc_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	netif_stop_queue(sl->dev);
-	printk("Chuss transmit!");
 	slc_encaps(sl, (struct can_frame *) skb->data); /* encaps & send */
 	spin_unlock(&sl->lock);
 
@@ -988,10 +635,7 @@ static void slc_setup(struct net_device *dev)
 static void slcan_receive_buf(struct tty_struct *tty,
 			      const unsigned char *cp, char *fp, int count)
 {
-	int i;
 	struct slcan *sl = (struct slcan *) tty->disc_data;
-	//for (i=0;i<SLC_MTU;i++)
-	//printk("Inside receive buffer = %c",*(sl->rbuff + i));
 
 	if (!sl || sl->magic != SLCAN_MAGIC || !netif_running(sl->dev))
 		return;
@@ -1039,7 +683,6 @@ static struct slcan *slc_alloc(void)
 	char name[IFNAMSIZ];
 	struct net_device *dev = NULL;
 	struct slcan       *sl;
-	int size;
 
 	for (i = 0; i < maxdev; i++) {
 		dev = slcan_devs[i];
@@ -1053,14 +696,12 @@ static struct slcan *slc_alloc(void)
 		return NULL;
 
 	sprintf(name, "slcan%d", i);
-	size = ALIGN(sizeof(*sl), NETDEV_ALIGN) + sizeof(struct can_ml_priv);
-	dev = alloc_netdev(size, name, NET_NAME_UNKNOWN, slc_setup);
+	dev = alloc_netdev(sizeof(*sl), name, NET_NAME_UNKNOWN, slc_setup);
 	if (!dev)
 		return NULL;
 
 	dev->base_addr  = i;
 	sl = netdev_priv(dev);
-	dev->ml_priv = (void *)sl + ALIGN(sizeof(*sl), NETDEV_ALIGN);
 
 	/* Initialize channel control data */
 	sl->magic = SLCAN_MAGIC;
@@ -1086,7 +727,7 @@ static int slcan_open(struct tty_struct *tty)
 {
 	struct slcan *sl;
 	int err;
-printk("tty open");
+
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
@@ -1166,7 +807,6 @@ static void slcan_close(struct tty_struct *tty)
 {
 	struct slcan *sl = (struct slcan *) tty->disc_data;
 
-printk("tty_close");
 	/* First make sure we're connected. */
 	if (!sl || sl->magic != SLCAN_MAGIC || sl->tty != tty)
 		return;
