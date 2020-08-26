@@ -290,163 +290,182 @@ int main(int argc, char *argv[])
 		perror(ttypath);
 		exit(EXIT_FAILURE);
 	}
-
+    printf("\n Connection successfully open!");
 	/* Configure baud rate */
 	memset(&tios, 0, sizeof(tios));
 	if (tcgetattr(fd, &tios) < 0) {
 		syslogger(LOG_NOTICE, "failed to get attributes for TTY device %s: %s\n", ttypath, strerror(errno));
 		exit(EXIT_FAILURE);
-	}
+	 }
 
+
+	
 	// Because of a recent change in linux - https://patchwork.kernel.org/patch/9589541/
 	// we need to set low latency flag to get proper receive latency
-	struct serial_struct snew;
-	ioctl (fd, TIOCGSERIAL, &snew);
-	snew.flags |= ASYNC_LOW_LATENCY;
-	ioctl (fd, TIOCSSERIAL, &snew);
+	 struct serial_struct snew;
+	 ioctl (fd, TIOCGSERIAL, &snew);
+	 snew.flags |= ASYNC_LOW_LATENCY;
+	 ioctl (fd, TIOCSSERIAL, &snew);
 
-	/* Get old values for later restore */
-	old_ispeed = cfgetispeed(&tios);
-	old_ospeed = cfgetospeed(&tios);
+	// /* Get old values for later restore */
+	 old_ispeed = cfgetispeed(&tios);
+	 old_ospeed = cfgetospeed(&tios);
 
-	/* Reset UART settings */
-	cfmakeraw(&tios);
-	tios.c_iflag &= ~IXOFF;
-	tios.c_cflag &= ~CRTSCTS;
+	tios.c_iflag = IGNPAR;
+	tios.c_oflag = 0x0;
+	tios.c_cflag = B9600|CS8|CREAD|HUPCL;
+	tios.c_lflag = 0x0;
+	tios.c_cc[4] = 0x1;
+	// /* Reset UART settings */
+	// cfmakeraw(&tios);
+	// tios.c_iflag &= ~IXOFF;
+	// tios.c_cflag &= ~CRTSCTS;
 
-	/* Baud Rate */
-	cfsetispeed(&tios, look_up_uart_speed(uart_speed));
-	cfsetospeed(&tios, look_up_uart_speed(uart_speed));
+	// /* Baud Rate */
+	// cfsetispeed(&tios, look_up_uart_speed(uart_speed));
+	// cfsetospeed(&tios, look_up_uart_speed(uart_speed));
 
-	/* Flow control */
-	if (flow_type == FLOW_HW)
-		tios.c_cflag |= CRTSCTS;
-	else if (flow_type == FLOW_SW)
-		tios.c_iflag |= (IXON | IXOFF);
+	cfsetispeed(&tios, B115200);
+	cfsetospeed(&tios, B115200);
+	printf("\n Baud Rate configured!");
 
-	/* apply changes */
-	if (tcsetattr(fd, TCSADRAIN, &tios) < 0)
-		syslogger(LOG_NOTICE, "Cannot set attributes for device \"%s\": %s!\n", ttypath, strerror(errno));
+	// /* Flow control */
+	// if (flow_type == FLOW_HW)
+	// 	tios.c_cflag |= CRTSCTS;
+	// else if (flow_type == FLOW_SW)
+	// 	tios.c_iflag |= (IXON | IXOFF);
 
-	if (speed) {
-		sprintf(buf, "C\rS%s\r", speed);
-		if (write(fd, buf, strlen(buf)) <= 0) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
+	// /* apply changes */
+	// if (tcsetattr(fd, TCSADRAIN, &tios) < 0)
+	// 	syslogger(LOG_NOTICE, "Cannot set attributes for device \"%s\": %s!\n", ttypath, strerror(errno));
+
+	if((tcsetattr(fd, TCSANOW, &tios)) != 0)
+	{
+		printf("Set %s failed!!\n", ttypath);
 	}
 
-	if (btr) {
-		sprintf(buf, "C\rs%s\r", btr);
-		if (write(fd, buf, strlen(buf)) <= 0) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-	}
+	tcgetattr(fd, &tios);
+	printf("com config %x %x %x %x %x\n",tios.c_iflag,tios.c_oflag,
+		tios.c_cflag,tios.c_lflag,tios.c_line);
+	printf("control char\n");
+	for (int i =0 ;i<NCCS;i++)
+		printf(" %x",tios.c_cc[i]);
+	printf("\n");
+	// if (speed) {
+	// 	sprintf(buf, "C\rS%s\r", speed);
+	// 	if (write(fd, buf, strlen(buf)) <= 0) {
+	// 		perror("write");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// }
 
-	if (send_read_status_flags) {
-		sprintf(buf, "F\r");
-		if (write(fd, buf, strlen(buf)) <= 0) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-	}
+	// if (btr) {
+	// 	sprintf(buf, "C\rs%s\r", btr);
+	// 	if (write(fd, buf, strlen(buf)) <= 0) {
+	// 		perror("write");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// }
 
-	if (send_listen) {
-		sprintf(buf, "L\r");
-		if (write(fd, buf, strlen(buf)) <= 0) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-	} else if (send_open) {
-		sprintf(buf, "O\r");
-		if (write(fd, buf, strlen(buf)) <= 0) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-	}
+	// if (send_read_status_flags) {
+	// 	sprintf(buf, "F\r");
+	// 	if (write(fd, buf, strlen(buf)) <= 0) {
+	// 		perror("write");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// }
+
+	// if (send_listen) {
+	// 	sprintf(buf, "L\r");
+	// 	if (write(fd, buf, strlen(buf)) <= 0) {
+	// 		perror("write");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// } else if (send_open) {
+	// 	sprintf(buf, "O\r");
+	// 	if (write(fd, buf, strlen(buf)) <= 0) {
+	// 		perror("write");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// }
 
 	/* set slcan like discipline on given tty */
 	if (ioctl(fd, TIOCSETD, &ldisc) < 0) {
-		perror("ioctl TIOCSETD");
-		exit(EXIT_FAILURE);
-	}
+	printf("Error set slcan like discipline on given tty"); }
 	
 	/* retrieve the name of the created CAN netdevice */
-	if (ioctl(fd, SIOCGIFNAME, ifr.ifr_name) < 0) {
-		perror("ioctl SIOCGIFNAME");
-		exit(EXIT_FAILURE);
-	}
+	 if (ioctl(fd, SIOCGIFNAME, ifr.ifr_name) < 0) {
+	 	printf("Error"); }
 
-	syslogger(LOG_NOTICE, "attached TTY %s to netdevice %s\n", ttypath, ifr.ifr_name);
+	 printf("attached TTY %s to netdevice %s\n", ttypath, ifr.ifr_name);
 	
 	/* try to rename the created netdevice */
-	if (name) {
-		int s = socket(PF_INET, SOCK_DGRAM, 0);
+	 if (name) {
+		printf("Trying to rename!\n");
+	 	int s = socket(PF_INET, SOCK_DGRAM, 0);
 
 		if (s < 0)
-			perror("socket for interface rename");
+	 		printf("socket for interface rename");
 		else {
-			/* current slcan%d name is still in ifr.ifr_name */
+	 		/* current slcan%d name is still in ifr.ifr_name */
 			memset (ifr.ifr_newname, 0, sizeof(ifr.ifr_newname));
-			strncpy (ifr.ifr_newname, name, sizeof(ifr.ifr_newname) - 1);
+	 		strncpy (ifr.ifr_newname, name, sizeof(ifr.ifr_newname) - 1);
 
-			if (ioctl(s, SIOCSIFNAME, &ifr) < 0) {
-				syslogger(LOG_NOTICE, "netdevice %s rename to %s failed\n", buf, name);
-				perror("ioctl SIOCSIFNAME rename");
-				exit(EXIT_FAILURE);
-			} else
-				syslogger(LOG_NOTICE, "netdevice %s renamed to %s\n", buf, name);
+	 		if (ioctl(s, SIOCSIFNAME, &ifr) < 0) {
+	 			printf("netdevice %s rename to %s failed\n", buf, name);
+	 			printf("ioctl SIOCSIFNAME rename");
+		} 
+		else
+			printf("netdevice %s renamed to %s\n", buf, name);
 
-			close(s);
-		}	
-	}
+     		//close(s);
+ 	        }	
+	           }
 
-	/* Daemonize */
-	if (run_as_daemon) {
-		if (daemon(0, 0)) {
-			syslogger(LOG_ERR, "failed to daemonize");
-			exit(EXIT_FAILURE);
-		}
-	}
-	else {
-		/* Trap signals that we expect to receive */
-		signal(SIGINT, child_handler);
-		signal(SIGTERM, child_handler);
-	}
+	// /* Daemonize */
+	// if (run_as_daemon) {
+	// 	if (daemon(0, 0)) {
+	// 		syslogger(LOG_ERR, "failed to daemonize");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// }
+	// else {
+	// 	/* Trap signals that we expect to receive */
+	// 	signal(SIGINT, child_handler);
+	// 	signal(SIGTERM, child_handler);
+	// }
 
 	slcand_running = 1;
 
-	/* The Big Loop */
-	while (slcand_running)
-		sleep(1); /* wait 1 second */
+	// /* The Big Loop */
+	// while (slcand_running)
+	// 	sleep(1); /* wait 1 second */
 
-	/* Reset line discipline */
-	syslogger(LOG_INFO, "stopping on TTY device %s", ttypath);
+	// /* Reset line discipline */
+	printf("stopping on TTY device %s", ttypath);
 	ldisc = N_TTY;
 	if (ioctl(fd, TIOCSETD, &ldisc) < 0) {
-		perror("ioctl TIOCSETD");
-		exit(EXIT_FAILURE);
-	}
+	 	printf("Error Reset line discipline");
+	 }
 
-	if (send_close) {
-		sprintf(buf, "C\r");
-		if (write(fd, buf, strlen(buf)) <= 0) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-	}
+	// if (send_close) {
+	// 	sprintf(buf, "C\r");
+	// 	if (write(fd, buf, strlen(buf)) <= 0) {
+	// 		perror("write");
+	// 		exit(EXIT_FAILURE);
+	// 	}
+	// }
 
-	/* Reset old rates */
-	cfsetispeed(&tios, old_ispeed);
-	cfsetospeed(&tios, old_ospeed);
+	// /* Reset old rates */
+	// cfsetispeed(&tios, old_ispeed);
+	// cfsetospeed(&tios, old_ospeed);
 
-	/* apply changes */
-	if (tcsetattr(fd, TCSADRAIN, &tios) < 0)
-		syslogger(LOG_NOTICE, "Cannot set attributes for device \"%s\": %s!\n", ttypath, strerror(errno));
+	// /* apply changes */
+	// if (tcsetattr(fd, TCSADRAIN, &tios) < 0)
+	// 	syslogger(LOG_NOTICE, "Cannot set attributes for device \"%s\": %s!\n", ttypath, strerror(errno));
 
-	/* Finish up */
-	syslogger(LOG_NOTICE, "terminated on %s", ttypath);
-	closelog();
-	return exit_code;
+	// /* Finish up */
+	// syslogger(LOG_NOTICE, "terminated on %s", ttypath);
+	// closelog();
+	// return exit_code;
 }
